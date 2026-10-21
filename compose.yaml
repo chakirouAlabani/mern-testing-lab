@@ -1,0 +1,56 @@
+services:
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "quit(db.adminCommand('ping').ok ? 0 : 1)"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  backend:
+    build: ./backend
+    env_file:
+      - ./backend/.env
+    environment:
+      NODE_ENV: development
+      PORT: "5000"
+      MONGO_CONNECTION_STRING: mongodb://mongo:27017/mern-course
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/@types:/app/@types
+      - ./backend/tsconfig.json:/app/tsconfig.json:ro
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5000/api/users').then(r => process.exit(r.status === 401 ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  frontend:
+    build: ./frontend
+    environment:
+      NODE_ENV: development
+      HOST: 0.0.0.0
+      PORT: "3000"
+      BROWSER: none
+      WATCHPACK_POLLING: "true"
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - ./frontend/tsconfig.json:/app/tsconfig.json:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  mongo_data:
