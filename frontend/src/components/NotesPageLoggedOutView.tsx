@@ -1,6 +1,6 @@
 const NotesPageLoggedOutView = () => {
     return (
-        <p>Welcome to the notes app</p>
+        <p>Please login to see your notes</p>
     );
 }
 
