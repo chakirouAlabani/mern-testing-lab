@@ -1,0 +1,94 @@
+# GitHub reads this file; the runner executes the shell scripts below.
+name: MERN instructor CI
+
+on:
+  push:
+    branches: [main, week9-ci-instructor]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+    env:
+      CI: "true"
+      # Commands run on the VM, so use its published localhost port.
+      TEST_MONGO_URI: mongodb://127.0.0.1:27017/mern_workshop_test
+    steps:
+      - name: Retrieve this revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Select Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install check test and build backend
+        run: sh ci/backend.sh
+      - name: Save compiled backend for the next job
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-dist
+          path: backend/dist/
+          if-no-files-found: error
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: "true"
+    steps:
+      - name: Retrieve this revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Select Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install check test and build frontend
+        run: sh ci/frontend.sh
+      - name: Save compiled frontend for the next job
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/build/
+          if-no-files-found: error
+
+  package:
+    # Both independent jobs must succeed. needs does not copy their files.
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: backend-dist
+          path: backend/dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/build
+      - name: Assemble release candidate
+        run: sh ci/package.sh
+        env:
+          BUILD_REVISION: ${{ github.sha }}
+      - name: Retain release candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-candidate
+          path: release/
+          if-no-files-found: error

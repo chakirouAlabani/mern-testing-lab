@@ -1,0 +1,21 @@
+services:
+  mongo:
+    image: mongo:7
+    tmpfs: [/data/db]
+    healthcheck:
+      test: [CMD, mongosh, --quiet, --eval, "quit(db.adminCommand('ping').ok ? 0 : 1)"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  app:
+    build: ../release
+    environment:
+      NODE_ENV: production
+      PORT: "5000"
+      SESSION_SECRET: disposable-local-demo-only-change-for-real-hosting
+      MONGO_CONNECTION_STRING: mongodb://mongo:27017/mern_demo_release
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - 127.0.0.1:5099:3000

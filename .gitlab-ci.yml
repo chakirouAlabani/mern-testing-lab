@@ -1,0 +1,62 @@
+# Requires a Linux runner using a Docker-compatible executor.
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_OPEN_MERGE_REQUESTS'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "week9-ci-instructor"'
+      when: always
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+
+stages: [check, package]
+
+default:
+  image: node:22-bookworm
+  timeout: 15 minutes
+
+variables:
+  CI: "true"
+
+backend:
+  stage: check
+  services:
+    - name: mongo:7
+      alias: mongo
+  variables:
+    # Job runs in a container, so use the service DNS alias.
+    TEST_MONGO_URI: mongodb://mongo:27017/mern_workshop_test
+  script:
+    - sh ci/backend.sh
+  artifacts:
+    paths: [backend/dist/]
+    expire_in: 1 week
+  rules:
+    - when: on_success
+
+frontend:
+  stage: check
+  script:
+    - sh ci/frontend.sh
+  artifacts:
+    paths: [frontend/build/]
+    expire_in: 1 week
+  rules:
+    - when: on_success
+
+package:
+  stage: package
+  needs:
+    - job: backend
+      artifacts: true
+    - job: frontend
+      artifacts: true
+  variables:
+    BUILD_REVISION: $CI_COMMIT_SHA
+  script:
+    - sh ci/package.sh
+  artifacts:
+    paths: [release/]
+    expire_in: 1 week
+  rules:
+    - when: on_success
