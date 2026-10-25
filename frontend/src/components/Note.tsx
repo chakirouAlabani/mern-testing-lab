@@ -34,13 +34,13 @@ const Note = ({ note, onNoteClicked, onDeleteNoteClicked, className }: NoteProps
             <Card.Body className={styles.cardBody}>
                 <Card.Title className={styleUtils.flexCenter}>
                     {title}
-                    <MdDelete
+                    <button type="button" aria-label={`Delete ${title}`}
                         className="text-muted ms-auto"
                         onClick={(e) => {
                             onDeleteNoteClicked(note);
                             e.stopPropagation();
                         }}
-                    />
+                    ><MdDelete /></button>
                 </Card.Title>
                 <Card.Text className={styles.cardText}>
                     {text}

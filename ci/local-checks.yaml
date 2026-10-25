@@ -1,0 +1,35 @@
+# Run from the repository root with project name week9-ci-study.
+services:
+  mongo:
+    image: mongo:7
+    tmpfs: [/data/db]
+    healthcheck:
+      test: [CMD, mongosh, --quiet, --eval, "quit(db.adminCommand('ping').ok ? 0 : 1)"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  backend:
+    image: node:22-bookworm
+    working_dir: /project
+    volumes:
+      - ..:/project
+      - backend-modules:/project/backend/node_modules
+    environment:
+      CI: "true"
+      TEST_MONGO_URI: mongodb://mongo:27017/mern_workshop_test
+    depends_on:
+      mongo:
+        condition: service_healthy
+    command: [sh, ci/backend.sh]
+  frontend:
+    image: node:22-bookworm
+    working_dir: /project
+    volumes:
+      - ..:/project
+      - frontend-modules:/project/frontend/node_modules
+    environment:
+      CI: "true"
+    command: [sh, ci/frontend.sh]
+volumes:
+  backend-modules:
+  frontend-modules:
